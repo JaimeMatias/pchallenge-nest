@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { SearchController } from 'src/Helpers/search/search.controller';
 import { SearchService } from 'src/Helpers/search/search.service';
 // import { Citys } from './interfaces/location.interfaces';
@@ -18,11 +18,6 @@ export class LocationService {
   ) {
     this.search = new SearchController(new SearchService());
   }
-  async create(createLocationDto: CreateLocationDto) {
-    console.log(createLocationDto);
-    // this.itemsModule.create(createLocationDto);
-    return 'This action adds a new location';
-  }
 
   async findAll() {
     return this.itemsModule.find();
@@ -32,10 +27,41 @@ export class LocationService {
    * @async
    * @function getLocation
    */
-  getLocation(Req: Request) {
+  async getLocation(Req: Request) {
     this.search.IP = Req;
-    this.search.IP;
-    return { IP: this.search.IP, msg: 'Your data' };
+    return new Promise((resolve, reject) => {
+      this.CityQueryDB(this.search.IP)
+        .then((data) => resolve(data))
+        .catch((e) => {
+          console.log(e);
+          resolve(this.CityQueryIpapi(this.search.IP));
+        });
+    });
+  }
+
+  async CityQueryDB(IPconsulta: string) {
+    const DBquery = await this.itemsModule.findOne({
+      IpSolicitud: IPconsulta,
+    });
+
+    return new Promise((resolve, reject) => {
+      // The city was found in the DB
+      if (DBquery) {
+        console.log('city was found in the DB');
+        const { IpSolicitud, City, Latitud, Longitud } = DBquery;
+        resolve({ IpSolicitud, City, Latitud, Longitud });
+      } else {
+        console.log('city was not  found in the DB');
+        reject({ msg: 404 });
+      }
+    });
+  }
+
+  CityQueryIpapi(IPconsulta: string) {
+    console.log('Ingresa a IPAPI');
+    return this.search.GetLocation(IPconsulta).then((data) => {
+      return data;
+    });
   }
   /**
    * Generate an Error Message when the API request is not a valid one
